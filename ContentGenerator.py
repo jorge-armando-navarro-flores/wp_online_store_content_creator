@@ -61,9 +61,9 @@ class StoreContentGenerator:
     def set_section_categories(self):
         sections = list(self.content['tienda_ecologica']['Secciones'].keys())
 
-        for section in sections[:2]:
+        for section in sections:
             categories = list(self.content['tienda_ecologica']['Secciones'][section]['Categorías'].keys())
-            for category in categories[:2]:
+            for category in categories:
                 prompt = f"""
                     Instrucciones:
                     Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
@@ -90,6 +90,59 @@ class StoreContentGenerator:
                 self.content['tienda_ecologica']['Secciones'][section]['Categorías'][category].update(category_params['categoria_tienda_ecologica'])
                 print(f"Section: {section} category: {category} UPDATED")
 
+    def set_homepage(self):
+        prompt = f"""
+            Instrucciones:
+            Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
+            Este es un diccionario que representa la pagina de inicio de una tienda en línea de productos ecológicos y sostenibles. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de secciones relevantes que puedas pensar para la pagina de inicio. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
+            
+            Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
+            
+            - El diccionario principal se llama "inicio".
+            - Dentro de "inicio", agrega una clave llamada "Secciones" que contiene otro diccionario.
+            - Cada sección debe ser una clave dentro del diccionario "Secciones".
+            - Para cada sección, incluye las siguientes claves:
+                - "Descripción": Una breve descripción de dos líneas sobre la sección.
+                - "Contenido": Contenido completo desarrollado y relevante de la seccion.
+                - "Desarrollo": Escribe un articulo completo e informativo (3500 palabras)
+            
+            Utiliza tu criterio y conocimiento para determinar las secciones y relevantes para la pagina de inicio de una tienda en línea de productos ecológicos y sostenibles.
+            Quiero esto para una web asi que utiliza HTML
+            Evita usar la frase "nuestros productos" o similares.
+            
+            Agrega la mayor cantidad posible de secciones relevantes.
+        """
+        response = get_completion(prompt)
+        home_data = json.loads(response)
+        self.content['tienda_ecologica']['Secciones']['inicio'] = home_data['inicio']
+
+    def set_blog(self):
+        prompt = f"""
+            Instrucciones:
+            Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
+            Este es un diccionario que representa la pagina de blog de una tienda en línea de {self.products}. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de articulos relevantes que puedas pensar para la pagina de blog. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
+            
+            Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
+            
+            - El diccionario principal se llama "blog".
+            - Dentro de "blog", agrega una clave llamada "Articulos" que contiene otro diccionario.
+            - Cada sección debe ser una clave dentro del diccionario "Articulos".
+            - Para cada sección, incluye las siguientes claves:
+                - "Descripción": Una breve descripción de dos líneas sobre el articulo.
+                - "Contenido": Contenido completo desarrollado y relevante de el articulo.
+                - "Desarrollo": Escribe el articulo completo e informativo (400 palabras) usa HTML.
+                
+            Utiliza tu criterio y conocimiento para determinar los articulos y relevantes para la pagina de blog de una tienda en línea de {self.products} que se enfoque en vender productos disponibles en Amazon.
+            
+            Agrega la mayor cantidad posible de articulos relevantes.
+        """
+        response = get_completion(prompt)
+        blog_data = json.loads(response)
+        self.content['tienda_ecologica']['Secciones']['blog'] = blog_data['blog']
+
+    def save_content(self):
+        with open('content.json', 'w') as file:
+            json.dump(self.content, file)
 
     def get_current_content(self):
         return self.content
