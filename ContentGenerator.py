@@ -46,6 +46,7 @@ class StoreContentGenerator:
         self.content = main_menu_dict
 
     def set_categories(self):
+        i = 1
         for section, caracteristics in self.content['menu'].items():
 
             if caracteristics['categorizable']:
@@ -62,10 +63,11 @@ class StoreContentGenerator:
                     caracteristics["categorias"].append({
                         "name": category
                     })
-            print("category set")
-
+            print(i, "category set")
+            i += 1
 
     def set_subcategories(self):
+        i = 1
         for section, caracteristics in self.content['menu'].items():
             if caracteristics['categorizable']:
                 for category in caracteristics["categorias"]:
@@ -82,14 +84,16 @@ class StoreContentGenerator:
                         category["subcategorias"].append({
                             "name": subcategory
                         })
-            print("subcategory set")
+                    print(i, "subcategory set")
+                    i += 1
 
     def set_products(self):
+        i = 1
         if self.content['menu']['productos']:
             for category in self.content['menu']['productos']['categorias']:
                 for subcategory in category['subcategorias']:
                     products_prompt = f"""
-                    Escribe como un Experto SEO
+                    Escribe como un Experto en la Busqueda de {self.products} en Amazon.
                     20 productos relevantes para la subcategoria de "{subcategory["name"]}" de la categoria de "{category["name"]}" de  la seccion de "productos"  de una {self.store}. 
                     
                     Asegurate de que sean productos que puedan encontrarse en Amazon.
@@ -100,12 +104,13 @@ class StoreContentGenerator:
                     products_response = get_completion(products_prompt)
                     products_list = eval(products_response)
                     subcategory["products"] = products_list
-                    print("subcategory products set")
-
-
-
-
+                    print(i, "subcategory products set")
+                    i += 1
 
     def get_current_content(self):
         return self.content
+
+    def save_content(self):
+        with open('content.json', 'w') as file:
+            json.dump(self.content, file)
 

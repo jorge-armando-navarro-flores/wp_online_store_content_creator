@@ -15,6 +15,8 @@ content_generator.set_subcategories()
 print("\n-------SUBCATEGORIES SET-------\n")
 content_generator.set_products()
 print("\n-------PRODUCTS SET-------\n")
+content_generator.save_content()
+print("\n-------CONTENT SAVED-------\n")
 
 print(content_generator.get_current_content())
 
