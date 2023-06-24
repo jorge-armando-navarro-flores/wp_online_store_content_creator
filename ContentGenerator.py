@@ -34,6 +34,11 @@ class StoreContentGenerator:
                                 "subcategory_idx": 0,
                                 "idx": 0
                             },
+                            "set_products_articles": {
+                                "category_idx": 0,
+                                "subcategory_idx": 0,
+                                "idx": 0
+                            },
                             "set_blog": {
                                 "category_idx": 0,
                                 "subcategory_idx": 0,
@@ -88,7 +93,7 @@ class StoreContentGenerator:
                     characteristics["categorias"] = []
                     for category in categories_list:
                         characteristics["categorias"].append({
-                            "name": category
+                            "nombre": category
                         })
                 print(idx+1, "category set")
                 idx += 1
@@ -109,7 +114,7 @@ class StoreContentGenerator:
                 for category in characteristics["categorias"][category_idx:]:
                     subcategories_prompt = f"""
                     Escribe como un Experto SEO
-                    10 Subcategorias relevantes para la categoria de "{category["name"]}" de la seccion de "{section}" de una {self.store}.
+                    10 Subcategorias relevantes para la categoria de "{category["nombre"]}" de la seccion de "{section}" de una {self.store}.
                     En formato de lista de python. solo la lista de python.
                     siguiendo el siguiente formato: [subcategoria1, subcategoria2]
                     """
@@ -118,7 +123,7 @@ class StoreContentGenerator:
                     category["subcategorias"] = []
                     for subcategory in subcategories_list:
                         category["subcategorias"].append({
-                            "name": subcategory
+                            "nombre": subcategory
                         })
                     print(idx+1, "subcategory set")
                     idx += 1
@@ -147,7 +152,7 @@ class StoreContentGenerator:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     products_prompt = f"""
                     Escribe como un Experto en la Busqueda de {self.products} en Amazon.
-                    20 productos relevantes para la subcategoria de "{subcategory["name"]}" de la categoria de "{category["name"]}" de  la seccion de "productos"  de una {self.store}. 
+                    20 productos relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "productos"  de una {self.store}. 
                     
                     Asegurate de que sean productos que puedan encontrarse en Amazon.
                     
@@ -156,7 +161,11 @@ class StoreContentGenerator:
                     """
                     products_response = get_completion(products_prompt)
                     products_list = eval(products_response)
-                    subcategory["productos"] = products_list
+                    subcategory["productos"] = []
+                    for product in products_list:
+                        subcategory["productos"].append({
+                            "nombre": product
+                        })
                     print(idx+1, "subcategory products set")
                     idx += 1
                     subcategory_idx += 1
@@ -174,6 +183,50 @@ class StoreContentGenerator:
 
         print("Completed ✓\n")
 
+    def set_products_articles(self):
+        print("\n-------PRODUCTS ARTICLES SET-------")
+        category_idx = self.checkpoint["set_products_articles"]["category_idx"]
+        subcategory_idx = self.checkpoint["set_products_articles"]["subcategory_idx"]
+        idx = self.checkpoint["set_products_articles"]["idx"]
+
+        if self.content['menu']['productos']:
+            for category in self.content['menu']['productos']['categorias'][category_idx:]:
+                for subcategory in category['subcategorias'][subcategory_idx:]:
+                    article_prompt = """
+                    Escribe como un Experto SEO.
+                    un articulo relevante para la subcategoria de "%s" de la categoria de "%s" de  la seccion de "productos" de una %s. 
+
+                    En formato JSON. solo el JSON.
+                     siguiendo el siguiente formato: 
+                    {
+                    "titulo": nombre del titulo,
+                    "meta-descripcion": meta descripcion en formato HTML,
+                    "ventajas": 7 ventajas desarrolladas de "%s" en formato HTML,
+                    "preguntas-freguentes": 7 preguntas frecuentes antes de comprar un producto de "%s" en formato HTML,
+                    }
+                    """ % (subcategory["nombre"], category["nombre"], self.store, subcategory["nombre"], subcategory["nombre"])
+                    article_response = get_completion(article_prompt)
+                    article = json.loads(article_response)
+                    subcategory["articulo"] = article
+                    print(idx + 1, "products article set")
+                    idx += 1
+                    subcategory_idx += 1
+                    self.checkpoint["set_products_articles"]["subcategory_idx"] = subcategory_idx
+                    self.checkpoint["set_products_articles"]["idx"] = idx
+                    self.save_checkpoint()
+                    self.save_content()
+                subcategory_idx = 0
+                self.checkpoint["set_products_articles"]["subcategory_idx"] = subcategory_idx
+                self.save_checkpoint()
+
+                category_idx += 1
+                self.checkpoint["set_products_articles"]["category_idx"] = category_idx
+                self.save_checkpoint()
+
+        print("Completed ✓\n")
+
+
+
     def set_blog(self):
         print("\n-------BLOG SET-------")
         category_idx = self.checkpoint["set_blog"]["category_idx"]
@@ -185,7 +238,7 @@ class StoreContentGenerator:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     topics_prompt = f"""
                             Escribe como un Experto en SEO.
-                            10 temas relevantes para la subcategoria de "{subcategory["name"]}" de la categoria de "{category["name"]}" de  la seccion de "blog"  de una {self.store}. 
+                            10 temas relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "blog"  de una {self.store}. 
                             En formato de lista de python. solo la lista de python.
                             siguiendo el siguiente formato: [tema1, tema2]
                             """
