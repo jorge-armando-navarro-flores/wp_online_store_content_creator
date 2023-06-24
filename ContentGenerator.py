@@ -17,132 +17,94 @@ def get_completion(prompt, model="gpt-3.5-turbo"):
 
 
 class StoreContentGenerator:
-    def __init__(self, store_name, products):
-        self.store_name = store_name
+    def __init__(self, store, products):
+        self.store = store
         self.products = products
         self.content = {}
 
-    def get_relevant_categories(self):
-        prompt = f"""
-            categorias reelevantes para una tienda de {self.products}  que vende productos que se encuentran en amazon
-            sin saltos de linea una sola linea    
-        """
-        response = get_completion(prompt)
-        return response
-
     def start_content_structure(self):
-        prompt = f"""
-            Instrucciones:
-            Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
-            Este es un diccionario que representa una tienda en línea de productos ecológicos y sostenibles. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de secciones y categorías relevantes que puedas pensar para la tienda. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
-            
-            Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
-            
-            - El diccionario principal se llama "{self.store_name}".
-            - Dentro de "tienda_ecologica", agrega una clave llamada "Secciones" que contiene otro diccionario.
-            - Cada sección debe ser una clave dentro del diccionario "Secciones".
-            - Para cada sección, incluye las siguientes claves:
-                - "Descripción": Una breve descripción de dos líneas sobre la sección.
-                - "Categorías": Un diccionario anidado que representa las categorías disponibles dentro de esa sección.
-            - Dentro de cada categoría, incluye las siguientes claves:
-                - "Descripción": Una breve descripción de dos líneas sobre la categoría.
-            
-            Utiliza tu criterio y conocimiento para determinar las secciones y categorías relevantes para una tienda 
-            en línea de productos ecológicos y sostenibles que se enfoque en vender productos disponibles en Amazon. 
-            Aquí tienes algunos ejemplos de secciones y categorías que podrías considerar: 
-            {self.get_relevant_categories()}, entre otros.
-            
-            Agrega la mayor cantidad posible de secciones y categorías relevantes, proporcionando descripciones breves de dos líneas para cada sección y categoría que agregues.
-            Solo dame el JSON
+        main_menu_prompt = f"""
+        Instrucciones:
+        Escribe como un experto SEO.
+
+        Este es un diccionario que representa un listado de las secciones que debe tener el menu principal de una {self.store}. Tu objetivo es proporcionar la estructura del diccionario en formato JSON. solo el JSON
+
+        - El diccionario principal se llama "menu".
+        - Cada nombre de sección debe ser una clave dentro del diccionario principal.
+        - Para cada sección, incluye las siguientes claves:
+            - "titulo":  nombre de la seccion.
+            - "descripcion": nombre completo relacionado con {self.store}.
+            - "categorizable" : 1 si es categorizable y 0 si no.
         """
-        response = get_completion(prompt)
-        self.content = json.loads(response)
 
-    def set_section_categories(self):
-        sections = list(self.content['tienda_ecologica']['Secciones'].keys())
+        main_menu_response = get_completion(main_menu_prompt)
+        main_menu_dict = json.loads(main_menu_response)
 
-        for section in sections:
-            categories = list(self.content['tienda_ecologica']['Secciones'][section]['Categorías'].keys())
-            for category in categories:
-                prompt = f"""
-                    Instrucciones:
-                    Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
-                    Este es un diccionario que representa una tienda en línea de {self.products} en la seccion de "{section}" dentro la categoria de "{category}". Contiene información sobre la categoria, descripcion, ventajas, preguntas frecuentes, y productos disponibles en la tienda. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de ventajas, preguntas frecuentes, y productos relevantes que puedas pensar para la categoria. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
-                    
-                    Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
-                    
-                    - El diccionario principal se llama "categoria_tienda_ecologica".
-                    - Dentro de "categoria_tienda_ecologica", se deben incluir las siguientes claves:
-                        - "Ventajas": Una lista que contiene las ventajas bien desarrolladas de los productos de esa categoría con el formato "ventaja: desarrollo".
-                        - "Preguntas frecuentes": Una lista que contiene las preguntas frecuentes que los posibles compradores podrían hacer sobre los productos de esa categoría y sus respuestas.
-                        - "Descripción": Una breve descripción de dos líneas sobre la categoría.
-                        - "Productos": Una lista que contiene ejemplos de productos relacionados con esa categoría. Asegúrate de que los productos mencionados sean productos que podrían encontrarse en Amazon.
-                        
-                    Utiliza tu criterio y conocimiento para determinar las ventajas, preguntas frecuentes y productos relevantes para una tienda en línea de {self.products} en la seccion de {section} dentro la categoria de {category} que se enfoque en vender productos disponibles en Amazon.
-                    
-                    Agrega la mayor cantidad posible de ventajas, preguntas frecuentes y productos.
-                    
-                    Las ventajas deben estar bien desarrolladas y con el formato "ventaja: desarrollo"
-                    Los productos deben ser 15 o mas, Recuerda que deben ser productos que podrian encontrarse en Amazon.
+        if main_menu_dict['menu'].get('blog'):
+            main_menu_dict['menu']['blog']['categorizable'] = 1
+
+        self.content = main_menu_dict
+
+    def set_categories(self):
+        for section, caracteristics in self.content['menu'].items():
+
+            if caracteristics['categorizable']:
+                categories_promt = f"""
+                Escribe como un Experto SEO
+                10 categorias relevantes para la seccion de {section} de una {self.store}.
+                En formato de lista de python. solo la lista de python.
+                siguiendo el siguiente formato: [categoria1, categoria2]
                 """
-                response = get_completion(prompt)
-                category_params = json.loads(response)
-                self.content['tienda_ecologica']['Secciones'][section]['Categorías'][category].update(category_params['categoria_tienda_ecologica'])
-                print(f"Section: {section} category: {category} UPDATED")
+                categories_response = get_completion(categories_promt)
+                categories_list = eval(categories_response)
+                caracteristics["categorias"] = []
+                for category in categories_list:
+                    caracteristics["categorias"].append({
+                        "name": category
+                    })
+            print("category set")
 
-    def set_homepage(self):
-        prompt = f"""
-            Instrucciones:
-            Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
-            Este es un diccionario que representa la pagina de inicio de una tienda en línea de productos ecológicos y sostenibles. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de secciones relevantes que puedas pensar para la pagina de inicio. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
-            
-            Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
-            
-            - El diccionario principal se llama "inicio".
-            - Dentro de "inicio", agrega una clave llamada "Secciones" que contiene otro diccionario.
-            - Cada sección debe ser una clave dentro del diccionario "Secciones".
-            - Para cada sección, incluye las siguientes claves:
-                - "Descripción": Una breve descripción de dos líneas sobre la sección.
-                - "Contenido": Contenido completo desarrollado y relevante de la seccion.
-                - "Desarrollo": Escribe un articulo completo e informativo (3500 palabras)
-            
-            Utiliza tu criterio y conocimiento para determinar las secciones y relevantes para la pagina de inicio de una tienda en línea de productos ecológicos y sostenibles.
-            Quiero esto para una web asi que utiliza HTML
-            Evita usar la frase "nuestros productos" o similares.
-            
-            Agrega la mayor cantidad posible de secciones relevantes.
-        """
-        response = get_completion(prompt)
-        home_data = json.loads(response)
-        self.content['tienda_ecologica']['Secciones']['inicio'] = home_data['inicio']
 
-    def set_blog(self):
-        prompt = f"""
-            Instrucciones:
-            Escribe como un experto en contenidos de calidad, persuasivos y optimizados para motores de busqueda para tiendas en linea.
-            Este es un diccionario que representa la pagina de blog de una tienda en línea de {self.products}. Tu objetivo es proporcionar la estructura del diccionario en formato JSON, incluyendo la mayor cantidad de articulos relevantes que puedas pensar para la pagina de blog. Recuerda que la tienda se enfoca en vender productos que están disponibles en Amazon.
-            
-            Por favor, crea la estructura del diccionario en formato JSON, solo el JSON, siguiendo las siguientes especificaciones:
-            
-            - El diccionario principal se llama "blog".
-            - Dentro de "blog", agrega una clave llamada "Articulos" que contiene otro diccionario.
-            - Cada sección debe ser una clave dentro del diccionario "Articulos".
-            - Para cada sección, incluye las siguientes claves:
-                - "Descripción": Una breve descripción de dos líneas sobre el articulo.
-                - "Contenido": Contenido completo desarrollado y relevante de el articulo.
-                - "Desarrollo": Escribe el articulo completo e informativo (400 palabras) usa HTML.
-                
-            Utiliza tu criterio y conocimiento para determinar los articulos y relevantes para la pagina de blog de una tienda en línea de {self.products} que se enfoque en vender productos disponibles en Amazon.
-            
-            Agrega la mayor cantidad posible de articulos relevantes.
-        """
-        response = get_completion(prompt)
-        blog_data = json.loads(response)
-        self.content['tienda_ecologica']['Secciones']['blog'] = blog_data['blog']
+    def set_subcategories(self):
+        for section, caracteristics in self.content['menu'].items():
+            if caracteristics['categorizable']:
+                for category in caracteristics["categorias"]:
+                    subcategories_prompt = f"""
+                    Escribe como un Experto SEO
+                    10 Subcategorias relevantes para la categoria de "{category["name"]}" de la seccion de "{section}" de una {self.store}.
+                    En formato de lista de python. solo la lista de python.
+                    siguiendo el siguiente formato: [subcategoria1, subcategoria2]
+                    """
+                    subcategories_response = get_completion(subcategories_prompt)
+                    subcategories_list = eval(subcategories_response)
+                    category["subcategorias"] = []
+                    for subcategory in subcategories_list:
+                        category["subcategorias"].append({
+                            "name": subcategory
+                        })
+            print("subcategory set")
 
-    def save_content(self):
-        with open('content.json', 'w') as file:
-            json.dump(self.content, file)
+    def set_products(self):
+        if self.content['menu']['productos']:
+            for category in self.content['menu']['productos']['categorias']:
+                for subcategory in category['subcategorias']:
+                    products_prompt = f"""
+                    Escribe como un Experto SEO
+                    20 productos relevantes para la subcategoria de "{subcategory["name"]}" de la categoria de "{category["name"]}" de  la seccion de "productos"  de una {self.store}. 
+                    
+                    Asegurate de que sean productos que puedan encontrarse en Amazon.
+                    
+                    En formato de lista de python. solo la lista de python.
+                    siguiendo el siguiente formato: [producto1, producto2]
+                    """
+                    products_response = get_completion(products_prompt)
+                    products_list = eval(products_response)
+                    subcategory["products"] = products_list
+                    print("subcategory products set")
+
+
+
+
 
     def get_current_content(self):
         return self.content
