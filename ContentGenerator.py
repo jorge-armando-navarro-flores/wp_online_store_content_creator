@@ -43,6 +43,12 @@ class StoreContentGenerator:
                                 "category_idx": 0,
                                 "subcategory_idx": 0,
                                 "idx": 0
+                            },
+                            "set_blog_articles": {
+                                "category_idx": 0,
+                                "subcategory_idx": 0,
+                                "topic_idx": 0,
+                                "idx": 0
                             }
                         }
 
@@ -194,7 +200,7 @@ class StoreContentGenerator:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     article_prompt = """
                     Escribe como un Experto SEO.
-                    un articulo relevante para la subcategoria de "%s" de la categoria de "%s" de  la seccion de "productos" de una %s. 
+                    un articulo relevante para la subcategoria de "%s" de la categoria de "%s" de  la seccion de "productos" de una %s (2100 palabras). 
 
                     En formato JSON. solo el JSON.
                      siguiendo el siguiente formato: 
@@ -244,7 +250,11 @@ class StoreContentGenerator:
                             """
                     topics_response = get_completion(topics_prompt)
                     topics_list = eval(topics_response)
-                    subcategory["temas"] = topics_list
+                    subcategory["temas"] = []
+                    for topic in topics_list:
+                        subcategory["temas"].append({
+                            "nombre": topic
+                        })
                     print(idx + 1, "subcategory topics set")
                     idx += 1
                     subcategory_idx += 1
@@ -261,6 +271,54 @@ class StoreContentGenerator:
                 self.save_checkpoint()
 
         print("Completed ✓\n")
+
+    def set_blog_articles(self):
+        print("\n-------BLOG ARTICLES SET-------")
+        category_idx = self.checkpoint["set_blog_articles"]["category_idx"]
+        subcategory_idx = self.checkpoint["set_blog_articles"]["subcategory_idx"]
+        topic_idx = self.checkpoint["set_blog_articles"]["topic_idx"]
+        idx = self.checkpoint["set_blog_articles"]["idx"]
+
+        if self.content['menu']['blog']:
+            for category in self.content['menu']['blog']['categorias'][category_idx:]:
+                for subcategory in category['subcategorias'][subcategory_idx:]:
+                    for topic in subcategory["temas"][topic_idx:2]:
+                        article_prompt = """
+                                        Escribe como un Experto en SEO.
+                                        un articulo relevante para el tema de "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "blog" de una %s (2100 palabras). 
+                                        En formato JSON. solo el JSON.
+                                         siguiendo el siguiente formato: 
+                                        {
+                                        "titulo": nombre del titulo,
+                                        "meta-descripcion": meta descripcion en formato HTML,
+                                        "contenido": contenido del articulo en formato HTML,
+                                        }
+                                        """ % (topic["nombre"], subcategory["nombre"], category["nombre"], self.store)
+                        article_response = get_completion(article_prompt)
+                        article = json.loads(article_response)
+                        topic["articulo"] = article
+                        print(idx + 1, "topic article set")
+                        idx += 1
+                        topic_idx += 1
+                        self.checkpoint["set_blog_articles"]["idx"] = idx
+                        self.checkpoint["set_blog_articles"]["topic_idx"] = topic_idx
+                        self.save_checkpoint()
+                        self.save_content()
+                    topic_idx = 0
+                    self.checkpoint["set_blog_articles"]["topic_idx"] = topic_idx
+                    self.save_checkpoint()
+                    subcategory_idx += 1
+                    self.checkpoint["set_blog_articles"]["subcategory_idx"] = subcategory_idx
+                    self.save_checkpoint()
+                subcategory_idx = 0
+                self.checkpoint["set_blog_articles"]["subcategory_idx"] = subcategory_idx
+                self.save_checkpoint()
+                category_idx += 1
+                self.checkpoint["set_blog_articles"]["category_idx"] = category_idx
+                self.save_checkpoint()
+
+        print("Completed ✓\n")
+
 
     def set_homepage(self):
         print("\n-------HOMEPAGE SET-------")
