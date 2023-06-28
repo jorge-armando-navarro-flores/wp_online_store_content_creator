@@ -17,10 +17,11 @@ def get_completion(prompt, model="gpt-3.5-turbo"):
 
 
 class StoreContentGenerator:
-    def __init__(self, store, products):
+    def __init__(self, store, products, content_size=2):
         self.store = store
         self.products = products
         self.content = {}
+        self.content_size = content_size
         self.checkpoint = {
                             "start_content_structure": 0,
                             "set_categories": 0,
@@ -48,6 +49,12 @@ class StoreContentGenerator:
                                 "category_idx": 0,
                                 "subcategory_idx": 0,
                                 "topic_idx": 0,
+                                "idx": 0
+                            },
+                            "set_product_reviews": {
+                                "category_idx": 0,
+                                "subcategory_idx": 0,
+                                "product_idx": 0,
                                 "idx": 0
                             }
                         }
@@ -90,7 +97,7 @@ class StoreContentGenerator:
                 if characteristics['categorizable']:
                     categories_promt = f"""
                     Escribe como un Experto SEO
-                    10 categorias relevantes para la seccion de {section} de una {self.store}.
+                    {self.content_size} categorias relevantes para la seccion de {section} de una {self.store}.
                     En formato de lista de python. solo la lista de python.
                     siguiendo el siguiente formato: [categoria1, categoria2]
                     """
@@ -120,7 +127,7 @@ class StoreContentGenerator:
                 for category in characteristics["categorias"][category_idx:]:
                     subcategories_prompt = f"""
                     Escribe como un Experto SEO
-                    10 Subcategorias relevantes para la categoria de "{category["nombre"]}" de la seccion de "{section}" de una {self.store}.
+                    {self.content_size} Subcategorias relevantes para la categoria de "{category["nombre"]}" de la seccion de "{section}" de una {self.store}.
                     En formato de lista de python. solo la lista de python.
                     siguiendo el siguiente formato: [subcategoria1, subcategoria2]
                     """
@@ -158,12 +165,12 @@ class StoreContentGenerator:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     products_prompt = f"""
                     Escribe como un Experto en la Busqueda de {self.products} en Amazon.
-                    20 productos relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "productos"  de una {self.store}. 
+                    {self.content_size*2} productos relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "productos"  de una {self.store}. 
                     
                     Asegurate de que sean productos que puedan encontrarse en Amazon.
                     
                     En formato de lista de python. solo la lista de python.
-                    siguiendo el siguiente formato: [producto1, producto2]
+                    siguiendo el siguiente formato: ["producto1", "producto2"]
                     """
                     products_response = get_completion(products_prompt)
                     products_list = eval(products_response)
@@ -185,6 +192,55 @@ class StoreContentGenerator:
 
                 category_idx += 1
                 self.checkpoint["set_products"]["category_idx"] = category_idx
+                self.save_checkpoint()
+
+        print("Completed ✓\n")
+
+    def set_product_reviews(self):
+        print("\n-------PRODUCT REVIEWS SET-------")
+        category_idx = self.checkpoint["set_product_reviews"]["category_idx"]
+        subcategory_idx = self.checkpoint["set_product_reviews"]["subcategory_idx"]
+        product_idx = self.checkpoint["set_product_reviews"]["product_idx"]
+        idx = self.checkpoint["set_product_reviews"]["idx"]
+
+        if self.content['menu']['productos']:
+            for category in self.content['menu']['productos']['categorias'][category_idx:]:
+                for subcategory in category['subcategorias'][subcategory_idx:]:
+                    for product in subcategory["productos"][product_idx:]:
+                        review_prompt = """
+                                        Escribe como un Experto en Ventas Online.
+                                        una reseña relevante para el producto "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "productos" de una %s (2100 palabras). 
+                                        En formato JSON. solo el JSON.
+                                         siguiendo el siguiente formato: 
+                                        {
+                                        "titulo": nombre del producto,
+                                        "meta-descripcion": meta descripcion en formato HTML,
+                                        "contenido": contenido de la reseña en formato HTML,
+                                        }
+                                        """ % (product["nombre"], subcategory["nombre"], category["nombre"], self.store)
+                        review_response = get_completion(review_prompt)
+                        review = json.loads(review_response)
+                        product["reseña"] = review
+                        print(idx + 1, "product review set")
+                        idx += 1
+                        product_idx += 1
+                        self.checkpoint["set_product_reviews"]["idx"] = idx
+                        self.checkpoint["set_product_reviews"]["product_idx"] = product_idx
+                        self.save_checkpoint()
+                        self.save_content()
+                    product_idx = 0
+                    self.checkpoint["set_product_reviews"]["product_idx"] = product_idx
+                    self.save_checkpoint()
+                    subcategory_idx += 1
+                    self.checkpoint["set_product_reviews"]["subcategory_idx"] = subcategory_idx
+                    self.checkpoint["set_product_reviews"]["idx"] = idx
+                    self.save_checkpoint()
+                subcategory_idx = 0
+                self.checkpoint["set_product_reviews"]["subcategory_idx"] = subcategory_idx
+                self.save_checkpoint()
+
+                category_idx += 1
+                self.checkpoint["set_product_reviews"]["category_idx"] = category_idx
                 self.save_checkpoint()
 
         print("Completed ✓\n")
@@ -244,7 +300,7 @@ class StoreContentGenerator:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     topics_prompt = f"""
                             Escribe como un Experto en SEO.
-                            10 temas relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "blog"  de una {self.store}. 
+                            {self.content_size} temas relevantes para la subcategoria de "{subcategory["nombre"]}" de la categoria de "{category["nombre"]}" de  la seccion de "blog"  de una {self.store}. 
                             En formato de lista de python. solo la lista de python.
                             siguiendo el siguiente formato: [tema1, tema2]
                             """
@@ -282,7 +338,7 @@ class StoreContentGenerator:
         if self.content['menu']['blog']:
             for category in self.content['menu']['blog']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
-                    for topic in subcategory["temas"][topic_idx:2]:
+                    for topic in subcategory["temas"][topic_idx:]:
                         article_prompt = """
                                         Escribe como un Experto en SEO.
                                         un articulo relevante para el tema de "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "blog" de una %s (2100 palabras). 
