@@ -1,9 +1,17 @@
 import openai
 import os
 import json
-import pprint
+from wp_content_uploader import ContentUploader
+
+from amazon_product_scraper import AmazonProductScraper
 
 openai.api_key = os.environ.get('OPENAI_API_KEY')
+SITE_URL = os.environ.get("SITE_URL")
+WP_USERNAME = os.environ.get("WP_USERNAME")
+WP_PASSWORD = os.environ.get("WP_PASSWORD")
+USERNAME = os.environ.get("USERNAME")
+PASSWORD = os.environ.get("PASSWORD")
+CHROME_DRIVER_PATH = os.environ.get("CHROME_DRIVER_PATH")
 
 
 def get_completion(prompt, model="gpt-3.5-turbo"):
@@ -14,6 +22,14 @@ def get_completion(prompt, model="gpt-3.5-turbo"):
         temperature=0, # this is the degree of randomness of the model's output
     )
     return response.choices[0].message["content"]
+
+
+def create_path_if_not_exists(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+        print(f"Created path: {path}")
+    else:
+        print(f"Path already exists: {path}")
 
 
 class StoreContentGenerator:
@@ -161,6 +177,7 @@ class StoreContentGenerator:
         idx = self.checkpoint["set_products"]["idx"]
 
         if self.content['menu']['productos']:
+
             for category in self.content['menu']['productos']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     products_prompt = f"""
@@ -176,8 +193,9 @@ class StoreContentGenerator:
                     products_list = eval(products_response)
                     subcategory["productos"] = []
                     for product in products_list:
+
                         subcategory["productos"].append({
-                            "nombre": product
+                            "nombre": product,
                         })
                     print(idx+1, "subcategory products set")
                     idx += 1
@@ -204,23 +222,37 @@ class StoreContentGenerator:
         idx = self.checkpoint["set_product_reviews"]["idx"]
 
         if self.content['menu']['productos']:
+            scraper = AmazonProductScraper(CHROME_DRIVER_PATH, USERNAME, PASSWORD)
+            scraper.login()
             for category in self.content['menu']['productos']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     for product in subcategory["productos"][product_idx:]:
-                        review_prompt = """
-                                        Escribe como un Experto en Ventas Online.
-                                        una reseña relevante para el producto "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "productos" de una %s (2100 palabras). 
-                                        En formato JSON. solo el JSON.
-                                         siguiendo el siguiente formato: 
-                                        {
-                                        "titulo": nombre del producto,
-                                        "meta-descripcion": meta descripcion en formato HTML,
-                                        "contenido": contenido de la reseña en formato HTML,
-                                        }
-                                        """ % (product["nombre"], subcategory["nombre"], category["nombre"], self.store)
-                        review_response = get_completion(review_prompt)
-                        review = json.loads(review_response)
-                        product["reseña"] = review
+                        download_image_path = f"images/{category['nombre']}/{subcategory['nombre']}/"
+                        create_path_if_not_exists(download_image_path)
+                        title, ref_url, image_path = scraper.search_product(product["nombre"], download_image_path)
+                        product["titulo"] = title
+                        product["ref_url"] = ref_url
+                        product["image_path"] = image_path
+                        scraper.process_images(download_image_path)
+                        if product["titulo"]:
+                            review_prompt = """
+                                            Escribe como un Experto en Ventas Online.
+                                            una reseña relevante para el producto "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "productos" de una %s (2100 palabras). 
+                                            En formato JSON. solo el JSON.
+                                             siguiendo el siguiente formato: 
+                                            {
+                                            "titulo": nombre del producto,
+                                            "meta-descripcion": meta descripcion en formato HTML,
+                                            "contenido": contenido de la reseña en formato HTML,
+                                            "llamada a la accion": llamada a la accion con boton de comprar con la url: "%s" en formato HTML
+                                            }
+                                            """ % (product["titulo"], subcategory["nombre"], category["nombre"], self.store, product["ref_url"])
+                            review_response = get_completion(review_prompt)
+                            review = json.loads(review_response)
+                            product["reseña"] = review
+                        if product["image_path"]:
+                            content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
+                            product["image_id"] = content_uploader.upload_image(product["image_path"])
                         print(idx + 1, "product review set")
                         idx += 1
                         product_idx += 1

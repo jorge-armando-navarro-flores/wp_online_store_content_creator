@@ -83,7 +83,7 @@ def process_images(input_directory, output_directory, crop_width, crop_height):
         resized_image = cropped_image.resize((crop_width, crop_height))
 
         # Save the cropped and resized image as PNG to preserve transparency
-        resized_image.save(output_path, format='WebP')
+        resized_image.save(output_path, format='PNG')
 
 
 def check_title_description_fit(title, description, threshold=0.8):
@@ -110,7 +110,6 @@ class AmazonProductScraper:
         ser = Service(driver_path)
         self.driver = webdriver.Chrome(options=chrome_options, service=ser)
         self.driver.get("https://www.amazon.com.mx/ref=nav_logo")
-        self.data = []
         # Here define de max seconds driver will wait for an element
         self.wait = WebDriverWait(self.driver, 5)
         self.username = username
@@ -137,77 +136,52 @@ class AmazonProductScraper:
             EC.visibility_of_element_located((By.XPATH, '//*[@id="signInSubmit"]')))
         signin_button.click()
 
-    def search_products(self, products, download_image_path):
-        for product in products:
-            if len(self.data) == 12:
-                break
+    def search_product(self, product, download_image_path):
+        self.driver.get("https://www.amazon.com.mx/ref=nav_logo")
+        try:
             # Here waits in case you need to introduce captcha
             search_field = self.wait.until(
                 EC.visibility_of_element_located((By.XPATH, '//*[@id="twotabsearchtextbox"]')))
             search_field.send_keys("")
-            print(product["nombre"])
-            search_field.send_keys(f'{product["nombre"]}')
+            print(product)
+            search_field.send_keys(f'{product}')
 
             search_button = self.wait.until(
                 EC.visibility_of_element_located((By.XPATH, '//*[@id="nav-search-submit-button"]')))
             search_button.click()
             try:
-                best_choice = self.select_best_option(product["nombre"])
+                best_choice = self.select_best_option(product)
+                idx = best_choice['element'].get('data-index')
+                title = best_choice['title']
             except ValueError:
-                continue
-            idx = best_choice['element'].get('data-index')
-            title = best_choice['title']
-            # //*[@id="search"]/div[1]/div[1]/div/span[1]/div[1]/div[2]
-            # //*[@id="search"]/div[1]/div[1]/div/span[1]/div[1]/div[3]
-            try:
-                product_frame = self.wait.until(
-                    EC.visibility_of_element_located((By.XPATH,
-                                                      f'//*[@id="search"]/div[1]/div[1]/div/span[1]/div[1]/div[{idx if idx else 0}]/div/div/div/div[1]')))
+                return "", "", ""
 
-                product_frame.click()
-                product_image = self.wait.until(
-                    EC.visibility_of_element_located(
-                        (By.CLASS_NAME, 'a-dynamic-image')))
-                image_path = f"{download_image_path}{product['nombre']}.jpg"
-                image_url = product_image.get_attribute("src")
-                urlretrieve(image_url, image_path)
+            product_frame = self.wait.until(
+                EC.visibility_of_element_located((By.XPATH,
+                                                  f'//*[@id="search"]/div[1]/div[1]/div/span[1]/div[1]/div[{idx if idx else 0}]/div/div/div/div[1]')))
 
+            product_frame.click()
+            product_image = self.wait.until(
+                EC.visibility_of_element_located(
+                    (By.CLASS_NAME, 'a-dynamic-image')))
+            image_path = f"{download_image_path}{product}.jpg"
+            image_url = product_image.get_attribute("src")
+            urlretrieve(image_url, image_path)
 
-            except TimeoutException:
-                print('Time to wait for the element finish, jumped to the next onessss')
-                self.driver.back()
-                continue
+            text_button = self.wait.until(
+                EC.visibility_of_element_located((By.XPATH, '//*[@id="amzn-ss-text-link"]')))
+            text_button.click()
 
-            try:
+            url_textarea = self.wait.until(
+                EC.visibility_of_element_located(
+                    (By.XPATH, '//*[@id="amzn-ss-text-shortlink-textarea"]')))
 
-                text_button = self.wait.until(
-                    EC.visibility_of_element_located((By.XPATH, '//*[@id="amzn-ss-text-link"]')))
-                text_button.click()
+            url_text = url_textarea.get_attribute("value")
 
-                url_textarea = self.wait.until(
-                    EC.visibility_of_element_located(
-                        (By.XPATH, '//*[@id="amzn-ss-text-shortlink-textarea"]')))
-
-                url_text = url_textarea.get_attribute("value")
-
-
-                self.data.append({
-                    'title': f'{title[:30]}..',
-                    'description': f'{product["nombre"]}',
-                    'ref_url': url_text,
-                    'image_path': f'{download_image_path}'
-                })
-
-                product['description'] = product['nombre']
-                product['title'] = title
-                product['ref_url'] = url_text
-                product["image_path"] = image_path
-
-            except TimeoutException:
-                print('Time to wait for the element finish, jumped to the next one')
-
-            self.driver.back()
-            self.driver.back()
+            return title, url_text, image_path
+        except TimeoutException:
+            print('Time to wait for the element finish, jumped to the next one')
+            return "", "", ""
 
     def select_best_option(self, product_name):
         soup = BeautifulSoup(self.driver.page_source, "lxml")
@@ -221,8 +195,6 @@ class AmazonProductScraper:
                 title = element.find('span', class_="a-size-base-plus")
                 root = element.find('div', class_="a-size-small")
                 reviews = root.find_all('span', attrs={'aria-label': True})[1]
-
-                similarity_ratio = difflib.SequenceMatcher(None, title.text.lower(), product_name.lower()).ratio()
 
                 if check_title_description_fit(title.get_text().lower(), element.get_text().lower()):
 
