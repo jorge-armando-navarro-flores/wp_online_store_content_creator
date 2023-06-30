@@ -38,6 +38,7 @@ class StoreContentGenerator:
         self.products = products
         self.content = {}
         self.content_size = content_size
+        self.content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
         self.checkpoint = {
                             "start_content_structure": 0,
                             "set_categories": 0,
@@ -140,13 +141,13 @@ class StoreContentGenerator:
         section_idx = self.checkpoint["set_subcategories"]["section_idx"]
         category_idx = self.checkpoint["set_subcategories"]["category_idx"]
         idx = self.checkpoint["set_subcategories"]["idx"]
-        content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
+
         for section, characteristics in list(self.content['menu'].items())[section_idx:]:
             if characteristics['categorizable']:
-                characteristics["category_id"] = content_uploader.new_category(characteristics)
+                characteristics["category_id"] = self.content_uploader.new_category(characteristics)
                 for category in characteristics["categorias"][category_idx:]:
                     category["parent_id"] = characteristics["category_id"]
-                    category["category_id"] = content_uploader.new_subcategory(category)
+                    category["category_id"] = self.content_uploader.new_subcategory(category)
                     subcategories_prompt = f"""
                     Escribe como un Experto SEO
                     {self.content_size} Subcategorias relevantes para la categoria de "{category["nombre"]}" de la seccion de "{section}" de una {self.store}.
@@ -161,7 +162,7 @@ class StoreContentGenerator:
                             "nombre": subcategory,
                             "parent_id": category["category_id"]
                         }
-                        new_subcategory["category_id"] = content_uploader.new_subcategory(new_subcategory)
+                        new_subcategory["category_id"] = self.content_uploader.new_subcategory(new_subcategory)
                         category["subcategorias"].append(new_subcategory)
                     print(idx+1, "subcategory set")
                     idx += 1
@@ -251,7 +252,7 @@ class StoreContentGenerator:
                                              siguiendo el siguiente formato: 
                                             {
                                             "titulo": nombre del producto,
-                                            "meta-descripcion": meta descripcion en formato HTML,
+                                            "meta-descripcion": meta descripcion,
                                             "contenido": contenido de la reseña en formato HTML,
                                             "llamada a la accion": llamada a la accion con boton de comprar con la url: "%s" en formato HTML
                                             }
@@ -260,8 +261,9 @@ class StoreContentGenerator:
                             review = json.loads(review_response)
                             product["reseña"] = review
                         if product["image_path"]:
-                            content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
-                            product["image_id"] = content_uploader.upload_image(product["image_path"])
+
+                            product["image_id"] = self.content_uploader.upload_image(product["image_path"])
+                            self.content_uploader.new_product_post(product, subcategory["category_id"])
                         print(idx + 1, "product review set")
                         idx += 1
                         product_idx += 1
@@ -293,7 +295,7 @@ class StoreContentGenerator:
         idx = self.checkpoint["set_products_articles"]["idx"]
 
         if self.content['menu']['productos']:
-            content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
+
             for category in self.content['menu']['productos']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     article_prompt = """
@@ -304,7 +306,7 @@ class StoreContentGenerator:
                      siguiendo el siguiente formato: 
                     {
                     "titulo": nombre del titulo,
-                    "meta-descripcion": meta descripcion entre etiquetas <p></p> de HTML,
+                    "meta-descripcion": meta descripcion,
                     "ventajas": 7 ventajas desarrolladas de consumir "%s". en formato HTML,
                     "preguntas-frecuentes": 7 preguntas frecuentes con sus respuestas antes de comprar un producto de "%s" en formato HTML,
                     }
@@ -312,7 +314,7 @@ class StoreContentGenerator:
                     article_response = get_completion(article_prompt)
                     article = json.loads(article_response)
                     subcategory["articulo"] = article
-                    content_uploader.new_page_with_gallery(subcategory["nombre"], subcategory["productos"], subcategory["articulo"], subcategory["parent_id"])
+                    self.content_uploader.new_page_with_gallery(subcategory["nombre"], subcategory["productos"], subcategory["articulo"], subcategory["parent_id"])
                     print(idx + 1, "products article set")
                     idx += 1
                     subcategory_idx += 1
@@ -389,7 +391,7 @@ class StoreContentGenerator:
                                          siguiendo el siguiente formato: 
                                         {
                                         "titulo": nombre del titulo,
-                                        "meta-descripcion": meta descripcion en formato HTML,
+                                        "meta-descripcion": meta descripcion,
                                         "contenido": contenido del articulo en formato HTML,
                                         }
                                         """ % (topic["nombre"], subcategory["nombre"], category["nombre"], self.store)
@@ -428,7 +430,7 @@ class StoreContentGenerator:
          siguiendo el siguiente formato: 
         {
         "titulo": nombre del titulo,
-        "meta-descripcion": meta descripcion en formato HTML,
+        "meta-descripcion": meta descripcion,
         "contenido": contenido del articulo en formato HTML,
         }
         """ % self.products

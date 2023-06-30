@@ -83,9 +83,34 @@ class ContentUploader:
             print('Response:', response.text)
             return ""
 
+    def new_product_post(self, product, parent_id):
+        url = self.site_url + 'wp-json/wp/v2/posts'
+        content = '<p>' + product["reseña"]["meta-descripcion"] + '</p>' + \
+                  product["reseña"]["contenido"] + \
+                  f'<a href="{product["ref_url"]}" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a>'
+        data = {
+            'title': product["titulo"],
+            'content': content,
+            'status': "publish",
+            'categories': [parent_id],
+            'featured_media': product["image_id"],
+            'fields': {
+                'meta_description': product["reseña"]["meta-descripcion"]
+            }
+        }
+        response = requests.post(url, auth=self.auth, json=data)
+
+        # Check the response from the WordPress API
+        if response.status_code == 201:
+            page_id = response.json().get('id')
+            print('The new page has been created successfully. Page ID:', page_id)
+        else:
+            print('Error creating the new page. Status code:', response.status_code)
+            print('Error message:', response.text)
+
     def new_page_with_gallery(self, title, products, article, parent_id):
         url = self.site_url + 'wp-json/wp/v2/posts'
-        content = article["meta-descripcion"] + \
+        content = '<p>' + article["meta-descripcion"] + '</p>' + \
                   self.create_gallery(products) + \
                   '<h2>Ventajas</h2>' + \
                   article["ventajas"] + \
@@ -95,7 +120,10 @@ class ContentUploader:
             'title': title,
             'content': content,
             'status': "publish",
-            'categories': [parent_id]
+            'categories': [parent_id],
+            'fields': {
+                'meta_description': article["meta-descripcion"]
+            }
         }
         response = requests.post(url, auth=self.auth, json=data)
 
@@ -199,7 +227,8 @@ class ContentUploader:
                                               <p>%s</p> \
                                               <a href="%s" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a> \
                                           </div> \
-                                    </div>' % (image_url,  product["titulo"], f"{product['titulo'][:30]}..", product["nombre"], product["ref_url"])
+                                    </div>' % (
+                    image_url, product["titulo"], f"{product['titulo'][:30]}..", product["nombre"], product["ref_url"])
         gallery_content += '</div>'
 
         return gallery_content
