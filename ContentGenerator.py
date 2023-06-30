@@ -106,11 +106,14 @@ class StoreContentGenerator:
 
     def set_categories(self):
         print("\n-------CATEGORIES SET-------")
+
         if not self.checkpoint["set_categories"]:
+
             idx = 0
             for section, characteristics in self.content['menu'].items():
 
                 if characteristics['categorizable']:
+
                     categories_promt = f"""
                     Escribe como un Experto SEO
                     {self.content_size} categorias relevantes para la seccion de {section} de una {self.store}.
@@ -137,10 +140,13 @@ class StoreContentGenerator:
         section_idx = self.checkpoint["set_subcategories"]["section_idx"]
         category_idx = self.checkpoint["set_subcategories"]["category_idx"]
         idx = self.checkpoint["set_subcategories"]["idx"]
+        content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
         for section, characteristics in list(self.content['menu'].items())[section_idx:]:
             if characteristics['categorizable']:
-
+                characteristics["category_id"] = content_uploader.new_category(characteristics)
                 for category in characteristics["categorias"][category_idx:]:
+                    category["parent_id"] = characteristics["category_id"]
+                    category["category_id"] = content_uploader.new_subcategory(category)
                     subcategories_prompt = f"""
                     Escribe como un Experto SEO
                     {self.content_size} Subcategorias relevantes para la categoria de "{category["nombre"]}" de la seccion de "{section}" de una {self.store}.
@@ -151,9 +157,12 @@ class StoreContentGenerator:
                     subcategories_list = eval(subcategories_response)
                     category["subcategorias"] = []
                     for subcategory in subcategories_list:
-                        category["subcategorias"].append({
-                            "nombre": subcategory
-                        })
+                        new_subcategory = {
+                            "nombre": subcategory,
+                            "parent_id": category["category_id"]
+                        }
+                        new_subcategory["category_id"] = content_uploader.new_subcategory(new_subcategory)
+                        category["subcategorias"].append(new_subcategory)
                     print(idx+1, "subcategory set")
                     idx += 1
                     category_idx += 1
@@ -303,7 +312,7 @@ class StoreContentGenerator:
                     article_response = get_completion(article_prompt)
                     article = json.loads(article_response)
                     subcategory["articulo"] = article
-                    content_uploader.new_page_with_gallery(subcategory["nombre"], subcategory["productos"], subcategory["articulo"])
+                    content_uploader.new_page_with_gallery(subcategory["nombre"], subcategory["productos"], subcategory["articulo"], subcategory["parent_id"])
                     print(idx + 1, "products article set")
                     idx += 1
                     subcategory_idx += 1

@@ -27,8 +27,64 @@ class ContentUploader:
         self.auth = (username, password)
         self.site_url = site_url
 
-    def new_page_with_gallery(self, title, products, article):
-        url = self.site_url + 'wp-json/wp/v2/pages'
+    def new_category(self, category):
+        url = self.site_url + 'wp-json/wp/v2/categories'
+        # Set the category details
+        name = category["titulo"]
+        description = category["descripcion"]
+
+        # Set the request headers
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        # Set the request body
+        data = {
+            'name': name,
+            'description': description
+        }
+
+        # Send the POST request to create the category
+        response = requests.post(url, json=data, headers=headers, auth=self.auth)
+
+        # Check the response
+        if response.status_code == 201:
+            return response.json().get('id')
+        else:
+            print('Error creating the category. Status code:', response.status_code)
+            print('Response:', response.text)
+            return ""
+
+    def new_subcategory(self, category):
+        url = self.site_url + 'wp-json/wp/v2/categories'
+        name = category["nombre"]
+        parent_id = 5  # ID of the parent category
+
+        # Set the request headers
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        # Set the request body
+        data = {
+            'name': name,
+            'parent': category["parent_id"]
+        }
+
+        # Send the POST request to create the category
+        response = requests.post(url, json=data, headers=headers, auth=self.auth)
+
+        # Check the response
+        if response.status_code == 201:
+            print('Subcategory created successfully.')
+            return response.json().get('id')
+        else:
+            print('Error creating the category. Status code:', response.status_code)
+            print('Response:', response.text)
+            return ""
+
+    def new_page_with_gallery(self, title, products, article, parent_id):
+        url = self.site_url + 'wp-json/wp/v2/posts'
         content = article["meta-descripcion"] + \
                   self.create_gallery(products) + \
                   '<h2>Ventajas</h2>' + \
@@ -38,7 +94,8 @@ class ContentUploader:
         data = {
             'title': title,
             'content': content,
-            'status': "publish"
+            'status': "publish",
+            'categories': [parent_id]
         }
         response = requests.post(url, auth=self.auth, json=data)
 
