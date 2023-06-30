@@ -83,13 +83,38 @@ class ContentUploader:
             print('Response:', response.text)
             return ""
 
+    def new_blog_post(self, topic, parent_id):
+        url = self.site_url + 'wp-json/wp/v2/posts'
+        content = '<p>' + topic["articulo"]["meta-descripcion"] + '</p>' + \
+                  topic["articulo"]["contenido"]
+
+        data = {
+            'title': topic["articulo"]["titulo"],
+            'content': content,
+            'status': "publish",
+            'categories': [parent_id],
+            # 'featured_media': topic["image_id"],
+            'fields': {
+                'meta_description': topic["articulo"]["meta-descripcion"]
+            }
+        }
+        response = requests.post(url, auth=self.auth, json=data)
+
+        # Check the response from the WordPress API
+        if response.status_code == 201:
+            page_id = response.json().get('id')
+            print('The new page has been created successfully. Page ID:', page_id)
+        else:
+            print('Error creating the new page. Status code:', response.status_code)
+            print('Error message:', response.text)
+
     def new_product_post(self, product, parent_id):
         url = self.site_url + 'wp-json/wp/v2/posts'
         content = '<p>' + product["reseña"]["meta-descripcion"] + '</p>' + \
                   product["reseña"]["contenido"] + \
                   f'<a href="{product["ref_url"]}" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a>'
         data = {
-            'title': product["titulo"],
+            'title': product["reseña"]["titulo"],
             'content': content,
             'status': "publish",
             'categories': [parent_id],
@@ -202,7 +227,10 @@ class ContentUploader:
                 f'Content-Disposition': f'attachment; filename="{image_path.split("/")[-1]}"',
                 'Content-Type': 'image/jpeg'
             }
-            response = requests.post(url, auth=self.auth, headers=headers, data=file)
+            data_media = {
+                'alt_text': image_path.split("/")[-1][-3:]
+            }
+            response = requests.post(url, auth=self.auth, headers=headers, data=file, params=data_media)
 
             if response.status_code == 201:
                 return response.json().get('id')

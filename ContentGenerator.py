@@ -251,7 +251,7 @@ class StoreContentGenerator:
                                             En formato JSON. solo el JSON.
                                              siguiendo el siguiente formato: 
                                             {
-                                            "titulo": nombre del producto,
+                                            "titulo": titulo,
                                             "meta-descripcion": meta descripcion,
                                             "contenido": contenido de la reseña en formato HTML sin titulo,
                                             "llamada a la accion": llamada a la accion con boton de comprar con la url: "%s" en formato HTML
@@ -398,6 +398,7 @@ class StoreContentGenerator:
                         article_response = get_completion(article_prompt)
                         article = json.loads(article_response)
                         topic["articulo"] = article
+                        self.content_uploader.new_blog_post(topic, subcategory["category_id"])
                         print(idx + 1, "topic article set")
                         idx += 1
                         topic_idx += 1
