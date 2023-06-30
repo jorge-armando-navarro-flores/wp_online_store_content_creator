@@ -83,7 +83,7 @@ def process_images(input_directory, output_directory, crop_width, crop_height):
         resized_image = cropped_image.resize((crop_width, crop_height))
 
         # Save the cropped and resized image as PNG to preserve transparency
-        resized_image.save(output_path, format='PNG')
+        resized_image.save(output_path, format='WebP')
 
 
 def check_title_description_fit(title, description, threshold=0.8):
@@ -217,7 +217,7 @@ class AmazonProductScraper:
         return self.data
 
     def process_images(self, download_image_path):
-        process_images(download_image_path, download_image_path, 200, 300)
+        process_images(download_image_path, download_image_path, 1200, 675)
 
     def delete_all_images(self, download_image_path):
         # Iterate through all files in the directory

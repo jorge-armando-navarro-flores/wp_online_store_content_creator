@@ -112,9 +112,7 @@ class ContentUploader:
         url = self.site_url + 'wp-json/wp/v2/posts'
         content = '<p>' + article["meta-descripcion"] + '</p>' + \
                   self.create_gallery(products) + \
-                  '<h2>Ventajas</h2>' + \
                   article["ventajas"] + \
-                  '<h2>Preguntas Frecuentes</h2>' + \
                   article["preguntas-frecuentes"]
         data = {
             'title': title,

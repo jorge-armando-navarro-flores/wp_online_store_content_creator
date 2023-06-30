@@ -14,8 +14,8 @@ WP_PASSWORD = os.environ.get("WP_PASSWORD")
 
 
 content_generator = StoreContentGenerator(STORE, PRODUCTS)
-content_generator.load_checkpoint()
-content_generator.load_content()
+# content_generator.load_checkpoint()
+# content_generator.load_content()
 content_generator.start_content_structure()
 content_generator.set_categories()
 content_generator.set_subcategories()

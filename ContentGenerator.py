@@ -253,7 +253,7 @@ class StoreContentGenerator:
                                             {
                                             "titulo": nombre del producto,
                                             "meta-descripcion": meta descripcion,
-                                            "contenido": contenido de la reseña en formato HTML,
+                                            "contenido": contenido de la reseña en formato HTML sin titulo,
                                             "llamada a la accion": llamada a la accion con boton de comprar con la url: "%s" en formato HTML
                                             }
                                             """ % (product["titulo"], subcategory["nombre"], category["nombre"], self.store, product["ref_url"])
