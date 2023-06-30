@@ -27,11 +27,17 @@ class ContentUploader:
         self.auth = (username, password)
         self.site_url = site_url
 
-    def new_page_with_gallery(self, title):
+    def new_page_with_gallery(self, title, products, article):
         url = self.site_url + 'wp-json/wp/v2/pages'
+        content = article["meta-descripcion"] + \
+                  self.create_gallery(products) + \
+                  '<h2>Ventajas</h2>' + \
+                  article["ventajas"] + \
+                  '<h2>Preguntas Frecuentes</h2>' + \
+                  article["preguntas-frecuentes"]
         data = {
             'title': title,
-            'content': self.create_gallery(),
+            'content': content,
             'status': "publish"
         }
         response = requests.post(url, auth=self.auth, json=data)
@@ -123,19 +129,20 @@ class ContentUploader:
                 print('Error message:', response.text)
                 return ""
 
-    def create_gallery(self):
+    def create_gallery(self, products):
         gallery_content = '<div class="container">'
 
-        for product in self.products:
-            image_url = self.get_image_url(product["image_id"])
-            gallery_content += '<div class="product"> \
-                                      <img src="%s" alt="%s"> \
-                                      <div class="details"> \
-                                          <h3>%s</h3> \
-                                          <p>%s</p> \
-                                          <a href="%s" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a> \
-                                      </div> \
-                                </div>' % (image_url,  product["title"],  product["title"], product["description"], product["ref_url"])
+        for product in products:
+            if product["ref_url"]:
+                image_url = self.get_image_url(product["image_id"])
+                gallery_content += '<div class="product"> \
+                                          <img src="%s" alt="%s"> \
+                                          <div class="details"> \
+                                              <h3>%s</h3> \
+                                              <p>%s</p> \
+                                              <a href="%s" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a> \
+                                          </div> \
+                                    </div>' % (image_url,  product["titulo"], f"{product['titulo'][:30]}..", product["nombre"], product["ref_url"])
         gallery_content += '</div>'
 
         return gallery_content
@@ -149,7 +156,10 @@ class ContentUploader:
         # Check the response from the WordPress API
         if response.status_code == 200:
             image_data = response.json()
-            image_url = image_data['guid']['rendered']
+            if isinstance(image_data, dict):
+                image_url = image_data['guid']['rendered']
+            elif isinstance(image_data, list):
+                image_url = image_data[0]['guid']['rendered']
         else:
             print('Error retrieving the image URL. Status code:', response.status_code)
             print('Error message:', response.text)

@@ -284,6 +284,7 @@ class StoreContentGenerator:
         idx = self.checkpoint["set_products_articles"]["idx"]
 
         if self.content['menu']['productos']:
+            content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
             for category in self.content['menu']['productos']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     article_prompt = """
@@ -294,14 +295,15 @@ class StoreContentGenerator:
                      siguiendo el siguiente formato: 
                     {
                     "titulo": nombre del titulo,
-                    "meta-descripcion": meta descripcion en formato HTML,
-                    "ventajas": 7 ventajas desarrolladas de "%s" en formato HTML,
-                    "preguntas-freguentes": 7 preguntas frecuentes antes de comprar un producto de "%s" en formato HTML,
+                    "meta-descripcion": meta descripcion entre etiquetas <p></p> de HTML,
+                    "ventajas": 7 ventajas desarrolladas de consumir "%s". en formato HTML,
+                    "preguntas-frecuentes": 7 preguntas frecuentes con sus respuestas antes de comprar un producto de "%s" en formato HTML,
                     }
                     """ % (subcategory["nombre"], category["nombre"], self.store, subcategory["nombre"], subcategory["nombre"])
                     article_response = get_completion(article_prompt)
                     article = json.loads(article_response)
                     subcategory["articulo"] = article
+                    content_uploader.new_page_with_gallery(subcategory["nombre"], subcategory["productos"], subcategory["articulo"])
                     print(idx + 1, "products article set")
                     idx += 1
                     subcategory_idx += 1
