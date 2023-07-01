@@ -1,3 +1,5 @@
+import time
+
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -114,6 +116,19 @@ class AmazonProductScraper:
         self.wait = WebDriverWait(self.driver, 5)
         self.username = username
         self.password = password
+
+    def get_post_image(self, title, download_image_path):
+        self.driver.get(f"https://www.google.com/search?q={title}&tbm=isch&hl=en-US&tbs=isz:l%2Cil:cl&sa=X&ved=0CAIQpwVqFwoTCMDZgf6v7P8CFQAAAAAdAAAAABAC&biw=1905&bih=912")
+        image_frame = self.wait.until(
+            EC.visibility_of_element_located((By.XPATH, '//*[@id="islrg"]/div[1]/div[1]/a[1]/div[1]/img')))
+        image_frame.click()
+        product_image = self.wait.until(
+            EC.visibility_of_element_located(
+                (By.XPATH, '//*[@id="Sva75c"]/div[2]/div[2]/div[2]/div[2]/c-wiz/div/div/div/div[3]/div[1]/a/img[1]')))
+        image_path = f"{download_image_path}{title}.jpg"
+        image_url = product_image.get_attribute("src")
+        urlretrieve(image_url, image_path)
+        return image_path
 
     def login(self):
         signin_button = self.wait.until(

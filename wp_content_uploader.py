@@ -86,14 +86,14 @@ class ContentUploader:
     def new_blog_post(self, topic, parent_id):
         url = self.site_url + 'wp-json/wp/v2/posts'
         content = '<p>' + topic["articulo"]["meta-descripcion"] + '</p>' + \
-                  topic["articulo"]["contenido"]
+                  topic["articulo"]["contenido"].split('</h1>')[-1]
 
         data = {
             'title': topic["articulo"]["titulo"],
             'content': content,
             'status': "publish",
             'categories': [parent_id],
-            # 'featured_media': topic["image_id"],
+            'featured_media': topic["image_id"],
             'fields': {
                 'meta_description': topic["articulo"]["meta-descripcion"]
             }
@@ -111,7 +111,7 @@ class ContentUploader:
     def new_product_post(self, product, parent_id):
         url = self.site_url + 'wp-json/wp/v2/posts'
         content = '<p>' + product["reseña"]["meta-descripcion"] + '</p>' + \
-                  product["reseña"]["contenido"] + \
+                  product["reseña"]["contenido"].split('</h1>')[-1] + \
                   f'<a href="{product["ref_url"]}" target="_blank" rel="nofollow" class="buy-btn">Comprar en Amazon</a>'
         data = {
             'title': product["reseña"]["titulo"],
@@ -121,6 +121,29 @@ class ContentUploader:
             'featured_media': product["image_id"],
             'fields': {
                 'meta_description': product["reseña"]["meta-descripcion"]
+            }
+        }
+        response = requests.post(url, auth=self.auth, json=data)
+
+        # Check the response from the WordPress API
+        if response.status_code == 201:
+            page_id = response.json().get('id')
+            print('The new page has been created successfully. Page ID:', page_id)
+        else:
+            print('Error creating the new page. Status code:', response.status_code)
+            print('Error message:', response.text)
+
+    def new_page(self, article):
+        url = self.site_url + 'wp-json/wp/v2/pages'
+        content = '<p>' + article["meta-descripcion"] + '</p>' + \
+                  article["contenido"].split('</h1>')[-1]
+
+        data = {
+            'title': article["titulo"],
+            'content': content,
+            'status': "publish",
+            'fields': {
+                'meta_description': article["meta-descripcion"]
             }
         }
         response = requests.post(url, auth=self.auth, json=data)

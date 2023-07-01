@@ -41,6 +41,7 @@ class StoreContentGenerator:
         self.content_uploader = ContentUploader(WP_USERNAME, WP_PASSWORD, SITE_URL)
         self.checkpoint = {
                             "start_content_structure": 0,
+                            "home_page_set": 0,
                             "set_categories": 0,
                             "set_subcategories": {
                                 "section_idx": 0,
@@ -72,7 +73,8 @@ class StoreContentGenerator:
                                 "category_idx": 0,
                                 "subcategory_idx": 0,
                                 "product_idx": 0,
-                                "idx": 0
+                                "idx": 0,
+                                "set": 0
                             }
                         }
 
@@ -231,13 +233,13 @@ class StoreContentGenerator:
         product_idx = self.checkpoint["set_product_reviews"]["product_idx"]
         idx = self.checkpoint["set_product_reviews"]["idx"]
 
-        if self.content['menu']['productos']:
+        if self.content['menu']['productos'] and not self.checkpoint["set_product_reviews"]["set"]:
             scraper = AmazonProductScraper(CHROME_DRIVER_PATH, USERNAME, PASSWORD)
             scraper.login()
             for category in self.content['menu']['productos']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     for product in subcategory["productos"][product_idx:]:
-                        download_image_path = f"images/{category['nombre']}/{subcategory['nombre']}/"
+                        download_image_path = f"product_images/{category['nombre']}/{subcategory['nombre']}/"
                         create_path_if_not_exists(download_image_path)
                         title, ref_url, image_path = scraper.search_product(product["nombre"], download_image_path)
                         product["titulo"] = title
@@ -253,7 +255,7 @@ class StoreContentGenerator:
                                             {
                                             "titulo": titulo,
                                             "meta-descripcion": meta descripcion,
-                                            "contenido": contenido de la reseña en formato HTML sin titulo,
+                                            "contenido": contenido de la reseña en formato HTML,
                                             "llamada a la accion": llamada a la accion con boton de comprar con la url: "%s" en formato HTML
                                             }
                                             """ % (product["titulo"], subcategory["nombre"], category["nombre"], self.store, product["ref_url"])
@@ -285,7 +287,8 @@ class StoreContentGenerator:
                 category_idx += 1
                 self.checkpoint["set_product_reviews"]["category_idx"] = category_idx
                 self.save_checkpoint()
-
+        self.checkpoint["set_product_reviews"]["set"] = 1
+        self.save_checkpoint()
         print("Completed ✓\n")
 
     def set_products_articles(self):
@@ -381,9 +384,15 @@ class StoreContentGenerator:
         idx = self.checkpoint["set_blog_articles"]["idx"]
 
         if self.content['menu']['blog']:
+            scraper = AmazonProductScraper(CHROME_DRIVER_PATH, USERNAME, PASSWORD)
             for category in self.content['menu']['blog']['categorias'][category_idx:]:
                 for subcategory in category['subcategorias'][subcategory_idx:]:
                     for topic in subcategory["temas"][topic_idx:]:
+                        download_image_path = f"post_images/{category['nombre']}/{subcategory['nombre']}/"
+                        create_path_if_not_exists(download_image_path)
+                        image_path = scraper.get_post_image(topic["nombre"], download_image_path)
+                        topic["image_path"] = image_path
+                        scraper.process_images(download_image_path)
                         article_prompt = """
                                         Escribe como un Experto en SEO.
                                         un articulo relevante para el tema de "%s" de la subcategoria de "%s" de la categoria de "%s" de la seccion de "blog" de una %s (2100 palabras). 
@@ -398,7 +407,9 @@ class StoreContentGenerator:
                         article_response = get_completion(article_prompt)
                         article = json.loads(article_response)
                         topic["articulo"] = article
-                        self.content_uploader.new_blog_post(topic, subcategory["category_id"])
+                        if topic["image_path"]:
+                            topic["image_id"] = self.content_uploader.upload_image(topic["image_path"])
+                            self.content_uploader.new_blog_post(topic, subcategory["category_id"])
                         print(idx + 1, "topic article set")
                         idx += 1
                         topic_idx += 1
@@ -424,21 +435,26 @@ class StoreContentGenerator:
 
     def set_homepage(self):
         print("\n-------HOMEPAGE SET-------")
-        homepage_prompt = """
-        Escribe como un Experto SEO
-        un articulo relevante e interesante sobre %s en general (3500 palabras).
-        En formato JSON. solo el JSON.
-         siguiendo el siguiente formato: 
-        {
-        "titulo": nombre del titulo,
-        "meta-descripcion": meta descripcion,
-        "contenido": contenido del articulo en formato HTML,
-        }
-        """ % self.products
+        if not self.checkpoint["home_page_set"]:
+            homepage_prompt = """
+            Escribe como un Experto SEO
+            un articulo relevante e interesante sobre %s en general (3500 palabras).
+            En formato JSON. solo el JSON.
+             siguiendo el siguiente formato: 
+            {
+            "titulo": nombre del titulo,
+            "meta-descripcion": meta descripcion,
+            "contenido": contenido del articulo en formato HTML,
+            }
+            """ % self.products
 
-        homepage_response = get_completion(homepage_prompt)
-        homepage_dict = json.loads(homepage_response)
-        self.content["menu"]["inicio"]["articulo"] = homepage_dict
+            homepage_response = get_completion(homepage_prompt)
+            homepage_dict = json.loads(homepage_response)
+            self.content["menu"]["inicio"]["articulo"] = homepage_dict
+            self.content_uploader.new_page(self.content["menu"]["inicio"]["articulo"])
+            self.checkpoint["home_page_set"] = 1
+            self.save_checkpoint()
+            self.save_content()
         print("Completed ✓\n")
 
     def get_current_content(self):
